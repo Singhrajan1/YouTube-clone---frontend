@@ -23,12 +23,15 @@ export const VideoPlayerModal = ({ video, user, onClose }) => {
       api.get(`/likes/status/video/${video._id}`)
         .then(res => setIsLiked(res.data?.data?.isLiked || false))
         .catch(() => {});
+<<<<<<< HEAD
 
       if (video.owner?.username) {
         api.get(`/users/c/${video.owner.username}`)
           .then(res => setIsSubscribed(res.data?.data?.isSubscribed || false))
           .catch(() => {});
       }
+=======
+>>>>>>> dfbe1e0ee853a8acb28f4fc06bcc1a7af0c2f157
     }
 
     // Fetch Comments
@@ -62,10 +65,14 @@ export const VideoPlayerModal = ({ video, user, onClose }) => {
       alert('Please log in to subscribe to channels');
       return;
     }
+<<<<<<< HEAD
     if (!video.owner?._id) {
       alert('Cannot subscribe to dummy or missing channel data.');
       return;
     }
+=======
+    if (!video.owner?._id) return;
+>>>>>>> dfbe1e0ee853a8acb28f4fc06bcc1a7af0c2f157
     try {
       await api.post(`/subscriptions/toggle/${video.owner._id}`);
       setIsSubscribed(!isSubscribed);
