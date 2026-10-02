@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { getAllVideos } from '../api/videoApi';
 import { VideoCard } from '../components/video/VideoCard';
 import { VideoCardSkeleton } from '../components/ui/Skeleton';
@@ -15,37 +15,67 @@ const SORT_OPTIONS = [
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('query') || '';
+  const sortBy = searchParams.get('sortBy') || 'createdAt';
+  const sortType = searchParams.get('sortType') || 'desc';
 
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [sortBy, setSortBy] = useState('createdAt');
-  const [sortType, setSortType] = useState('desc');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({});
 
-  const fetchResults = useCallback(async (pg = 1) => {
-    if (!query.trim()) return;
+  useEffect(() => {
+    let isMounted = true;
+    const loadInitialResults = async () => {
+      if (!query.trim()) {
+        setVideos([]);
+        setPagination({});
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      setError(null);
+      const { data, error: err } = await getAllVideos({ query, page: 1, limit: 12, sortBy, sortType });
+      if (!isMounted) return;
+      setLoading(false);
+      if (err) { setError(err); return; }
+      setVideos(data?.videos || []);
+      setPage(1);
+      setPagination({ hasNextPage: data?.hasNextPage, totalVideos: data?.totalVideos });
+    };
+
+    loadInitialResults();
+    return () => {
+      isMounted = false;
+    };
+  }, [query, sortBy, sortType]);
+
+  const handleLoadMore = async () => {
+    const next = page + 1;
     setLoading(true);
-    setError(null);
-    const { data, error: err } = await getAllVideos({ query, page: pg, limit: 12, sortBy, sortType });
+    const { data, error: err } = await getAllVideos({ query, page: next, limit: 12, sortBy, sortType });
     setLoading(false);
     if (err) { setError(err); return; }
-    if (pg === 1) setVideos(data?.videos || []);
-    else setVideos((prev) => [...prev, ...(data?.videos || [])]);
-    setPagination({ hasNextPage: data?.hasNextPage, totalVideos: data?.totalVideos });
-  }, [query, sortBy, sortType]);
-
-  useEffect(() => {
-    setPage(1);
-    setVideos([]);
-    fetchResults(1);
-  }, [query, sortBy, sortType]);
-
-  const handleLoadMore = () => {
-    const next = page + 1;
+    setVideos((prev) => [...prev, ...(data?.videos || [])]);
     setPage(next);
-    fetchResults(next);
+    setPagination({ hasNextPage: data?.hasNextPage, totalVideos: data?.totalVideos });
+  };
+
+  const handleSortChange = (newSortBy) => {
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      p.set('sortBy', newSortBy);
+      return p;
+    });
+  };
+
+  const handleSortTypeToggle = () => {
+    const nextType = sortType === 'desc' ? 'asc' : 'desc';
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      p.set('sortType', nextType);
+      return p;
+    });
   };
 
   return (
@@ -58,10 +88,10 @@ export default function SearchPage() {
           <span className="muted-text">{pagination.totalVideos} videos found</span>
         )}
         <div className="sort-controls">
-          <select id="search-sort-select" className="select" value={sortBy} onChange={(e) => { setSortBy(e.target.value); setPage(1); }}>
+          <select id="search-sort-select" className="select" value={sortBy} onChange={(e) => handleSortChange(e.target.value)}>
             {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
-          <button className="btn btn-ghost btn-sm" onClick={() => { setSortType((p) => p === 'desc' ? 'asc' : 'desc'); setPage(1); }}>
+          <button className="btn btn-ghost btn-sm" onClick={handleSortTypeToggle} aria-label={`Sort ${sortType === 'desc' ? 'ascending' : 'descending'}`}>
             {sortType === 'desc' ? '↓' : '↑'}
           </button>
         </div>

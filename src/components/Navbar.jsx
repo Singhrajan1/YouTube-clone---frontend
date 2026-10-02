@@ -1,5 +1,4 @@
-import React from 'react';
-import { PlayIcon, SearchIcon, UploadIcon, UserIcon, LogOutIcon } from './Icons';
+import { PlayIcon, SearchIcon, UploadIcon, LogOutIcon } from './Icons';
 
 export const Navbar = ({ 
   searchQuery, 

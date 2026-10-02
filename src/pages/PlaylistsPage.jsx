@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -11,7 +11,7 @@ export default function PlaylistsPage() {
   const addToast = useToast();
 
   const [playlists, setPlaylists] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(isAuthenticated && !!user);
   const [error, setError] = useState(null);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -22,30 +22,39 @@ export default function PlaylistsPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   useEffect(() => {
-    if (!isAuthenticated || !user) { setLoading(false); return; }
-    loadPlaylists();
-  }, [isAuthenticated, user]);
+    if (!isAuthenticated || !user?._id) return;
+    let isMounted = true;
 
-  const loadPlaylists = async () => {
-    setLoading(true);
-    const { data, error: err } = await getUserPlaylists(user._id);
-    setLoading(false);
-    if (err) { setError(err); return; }
-    setPlaylists(Array.isArray(data) ? data : []);
-  };
+    const loadInitialPlaylists = async () => {
+      setLoading(true);
+      const { data, error: err } = await getUserPlaylists(user._id);
+      if (!isMounted) return;
+      setLoading(false);
+      if (err) { setError(err); return; }
+      setPlaylists(Array.isArray(data) ? data : []);
+    };
+
+    loadInitialPlaylists();
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated, user?._id]);
 
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!name.trim()) return;
     setCreating(true);
-    const { data, error: err } = await createPlaylist({ name: name.trim(), description: description.trim() });
+    const { error: err } = await createPlaylist({ name: name.trim(), description: description.trim() });
     setCreating(false);
     if (err) { addToast(err, 'error'); return; }
     addToast('Playlist created!', 'success');
     setName('');
     setDescription('');
     setShowCreateModal(false);
-    loadPlaylists();
+    if (user?._id) {
+      const { data } = await getUserPlaylists(user._id);
+      if (Array.isArray(data)) setPlaylists(data);
+    }
   };
 
   const handleDelete = async () => {

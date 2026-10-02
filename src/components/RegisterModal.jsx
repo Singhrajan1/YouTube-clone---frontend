@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { XIcon, UploadIcon } from './Icons';
+import { useState } from 'react';
+import { XIcon } from './Icons';
 import api from '../api/axios';
 
 export const RegisterModal = ({ isOpen, onClose, onSuccess }) => {

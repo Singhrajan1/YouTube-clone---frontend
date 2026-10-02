@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getVideoById, deleteVideo } from '../api/videoApi';
 import { useAuth } from '../context/AuthContext';
@@ -10,7 +10,7 @@ import { getUserChannelProfile } from '../api/authApi';
 import { CommentsSection } from '../components/comments/CommentsSection';
 import { PlaylistModal } from '../components/playlist/PlaylistModal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
-import { formatDuration, formatViews, formatDate, getInitials } from '../utils/formatters';
+import { formatViews, formatDate, getInitials } from '../utils/formatters';
 import { Skeleton } from '../components/ui/Skeleton';
 
 export default function WatchPage() {
@@ -41,31 +41,42 @@ export default function WatchPage() {
 
   useEffect(() => {
     historyAdded.current = false;
-    loadVideo();
-  }, [videoId]);
+    let isMounted = true;
 
-  const loadVideo = async () => {
-    setLoading(true);
-    setError(null);
-    const { data, error: err } = await getVideoById(videoId);
-    setLoading(false);
-    if (err) { setError(err); return; }
-    setVideo(data);
+    const fetchVideoDetails = async () => {
+      setLoading(true);
+      setError(null);
+      const { data, error: err } = await getVideoById(videoId);
+      if (!isMounted) return;
+      setLoading(false);
+      if (err) {
+        setError(err);
+        return;
+      }
+      setVideo(data);
 
-    // Load like count (public)
-    getVideoLikeCount(videoId).then(({ data: ld }) => { if (ld) setLikeCount(ld.count ?? 0); });
-
-    // Load like status + channel profile (requires auth)
-    if (isAuthenticated && data?.owner?.username) {
-      getVideoLikeStatus(videoId).then(({ data: ls }) => { if (ls) setLiked(ls.liked); });
-      getUserChannelProfile(data.owner.username).then(({ data: ch }) => {
-        if (ch) {
-          setIsSubscribed(ch.isSubscribed);
-          setSubscribersCount(ch.subscribersCount);
-        }
+      getVideoLikeCount(videoId).then(({ data: ld }) => {
+        if (isMounted && ld) setLikeCount(ld.count ?? 0);
       });
-    }
-  };
+
+      if (isAuthenticated && data?.owner?.username) {
+        getVideoLikeStatus(videoId).then(({ data: ls }) => {
+          if (isMounted && ls) setLiked(ls.liked);
+        });
+        getUserChannelProfile(data.owner.username).then(({ data: ch }) => {
+          if (isMounted && ch) {
+            setIsSubscribed(ch.isSubscribed);
+            setSubscribersCount(ch.subscribersCount);
+          }
+        });
+      }
+    };
+
+    fetchVideoDetails();
+    return () => {
+      isMounted = false;
+    };
+  }, [videoId, isAuthenticated]);
 
   // Add to watch history once per video load, after 5s of watching
   useEffect(() => {

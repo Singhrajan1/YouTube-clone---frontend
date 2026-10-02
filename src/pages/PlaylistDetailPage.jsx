@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -27,19 +27,24 @@ export default function PlaylistDetailPage() {
   const [removingVideoId, setRemovingVideoId] = useState(null);
 
   useEffect(() => {
-    loadPlaylist();
-  }, [playlistId]);
+    let isMounted = true;
+    const fetchPlaylist = async () => {
+      setLoading(true);
+      setError(null);
+      const { data, error: err } = await getPlaylistById(playlistId);
+      if (!isMounted) return;
+      setLoading(false);
+      if (err) { setError(err); return; }
+      setPlaylist(data);
+      setName(data?.name || '');
+      setDescription(data?.description || '');
+    };
 
-  const loadPlaylist = async () => {
-    setLoading(true);
-    setError(null);
-    const { data, error: err } = await getPlaylistById(playlistId);
-    setLoading(false);
-    if (err) { setError(err); return; }
-    setPlaylist(data);
-    setName(data?.name || '');
-    setDescription(data?.description || '');
-  };
+    fetchPlaylist();
+    return () => {
+      isMounted = false;
+    };
+  }, [playlistId]);
 
   const isOwner = isAuthenticated && user && playlist && (playlist.owner?._id === user._id || playlist.owner === user._id);
 
@@ -47,7 +52,7 @@ export default function PlaylistDetailPage() {
     e.preventDefault();
     if (!name.trim()) return;
     setSaving(true);
-    const { data, error: err } = await updatePlaylist(playlistId, { name: name.trim(), description: description.trim() });
+    const { error: err } = await updatePlaylist(playlistId, { name: name.trim(), description: description.trim() });
     setSaving(false);
     if (err) { addToast(err, 'error'); return; }
     setPlaylist((prev) => ({ ...prev, name: name.trim(), description: description.trim() }));

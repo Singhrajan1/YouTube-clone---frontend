@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { getUserPlaylists, createPlaylist, addVideoToPlaylist, removeVideoFromPlaylist } from '../../api/playlistApi';
@@ -18,17 +18,36 @@ export const PlaylistModal = ({ videoId, onClose }) => {
 
   useEffect(() => {
     if (!user) return;
-    loadPlaylists();
-  }, [user]);
+    let isMounted = true;
 
-  const loadPlaylists = async () => {
-    setLoading(true);
-    const { data, error } = await getUserPlaylists(user._id);
-    setLoading(false);
-    if (error) { addToast(error, 'error'); return; }
+    const loadInitial = async () => {
+      setLoading(true);
+      const { data, error } = await getUserPlaylists(user._id);
+      if (!isMounted) return;
+      setLoading(false);
+      if (error) { addToast(error, 'error'); return; }
+      const list = Array.isArray(data) ? data : [];
+      setPlaylists(list);
+      const inPlaylist = {};
+      list.forEach((pl) => {
+        inPlaylist[pl._id] = Array.isArray(pl.videos) && pl.videos.some(
+          (v) => (typeof v === 'string' ? v : v?._id) === videoId
+        );
+      });
+      setVideoInPlaylist(inPlaylist);
+    };
+
+    loadInitial();
+    return () => {
+      isMounted = false;
+    };
+  }, [user, videoId, addToast]);
+
+  const refreshPlaylists = async () => {
+    if (!user) return;
+    const { data } = await getUserPlaylists(user._id);
     const list = Array.isArray(data) ? data : [];
     setPlaylists(list);
-    // Determine which playlists already contain this video
     const inPlaylist = {};
     list.forEach((pl) => {
       inPlaylist[pl._id] = Array.isArray(pl.videos) && pl.videos.some(
@@ -70,7 +89,7 @@ export const PlaylistModal = ({ videoId, onClose }) => {
     setNewName('');
     setNewDesc('');
     setShowCreate(false);
-    await loadPlaylists();
+    await refreshPlaylists();
     // Auto-add the video to the newly created playlist
     if (data?._id) {
       await addVideoToPlaylist(data._id, videoId);

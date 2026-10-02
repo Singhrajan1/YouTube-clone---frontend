@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { getAllVideos } from '../api/videoApi';
 import { VideoCard } from '../components/video/VideoCard';
 import { VideoCardSkeleton } from '../components/ui/Skeleton';
@@ -22,42 +22,52 @@ export default function HomePage() {
   const [sortType, setSortType] = useState('desc');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({});
-  const [searchParams] = useSearchParams();
 
-  const fetchVideos = useCallback(async (pg = 1, sb = sortBy, st = sortType) => {
+  useEffect(() => {
+    let isMounted = true;
+    const loadInitialVideos = async () => {
+      setLoading(true);
+      setError(null);
+      const { data, error: err } = await getAllVideos({ page: 1, limit: 12, sortBy, sortType });
+      if (!isMounted) return;
+      setLoading(false);
+      if (err) { setError(err); return; }
+      setVideos(data?.videos || []);
+      setPage(1);
+      setPagination({
+        totalPages: data?.totalPages,
+        hasNextPage: data?.hasNextPage,
+        currentPage: data?.currentPage,
+      });
+    };
+
+    loadInitialVideos();
+    return () => {
+      isMounted = false;
+    };
+  }, [sortBy, sortType]);
+
+  const handleLoadMore = async () => {
+    const next = page + 1;
     setLoading(true);
-    setError(null);
-    const { data, error: err } = await getAllVideos({ page: pg, limit: 12, sortBy: sb, sortType: st });
+    const { data, error: err } = await getAllVideos({ page: next, limit: 12, sortBy, sortType });
     setLoading(false);
     if (err) { setError(err); return; }
-    if (pg === 1) setVideos(data?.videos || []);
-    else setVideos((prev) => [...prev, ...(data?.videos || [])]);
+    setVideos((prev) => [...prev, ...(data?.videos || [])]);
+    setPage(next);
     setPagination({
       totalPages: data?.totalPages,
       hasNextPage: data?.hasNextPage,
       currentPage: data?.currentPage,
     });
-  }, [sortBy, sortType]);
-
-  useEffect(() => {
-    setPage(1);
-    fetchVideos(1, sortBy, sortType);
-  }, [sortBy, sortType]);
-
-  const handleLoadMore = () => {
-    const next = page + 1;
-    setPage(next);
-    fetchVideos(next, sortBy, sortType);
   };
 
   const handleSortChange = (e) => {
     setSortBy(e.target.value);
-    setPage(1);
   };
 
   const handleSortTypeToggle = () => {
     setSortType((prev) => (prev === 'desc' ? 'asc' : 'desc'));
-    setPage(1);
   };
 
   return (

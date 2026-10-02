@@ -1,5 +1,3 @@
-import React from 'react';
-
 export const EmptyState = ({ icon = '📭', title, description, action }) => (
   <div className="empty-state">
     <div className="empty-icon" aria-hidden="true">{icon}</div>

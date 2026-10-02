@@ -1,5 +1,4 @@
-import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const NavItem = ({ to, icon, label, onClick, id }) => (
@@ -65,16 +64,6 @@ const SettingsIcon = () => (
 
 export const Sidebar = ({ isOpen, onClose }) => {
   const { user, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
-
-  const handleProtectedNav = (to) => {
-    if (!isAuthenticated) {
-      navigate('/login');
-    } else {
-      navigate(to);
-    }
-    if (onClose) onClose();
-  };
 
   return (
     <>

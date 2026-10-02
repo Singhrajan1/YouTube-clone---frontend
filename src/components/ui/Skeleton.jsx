@@ -1,5 +1,3 @@
-import React from 'react';
-
 export const Skeleton = ({ className = '', style = {} }) => (
   <div className={`skeleton ${className}`} style={style} aria-hidden="true" />
 );

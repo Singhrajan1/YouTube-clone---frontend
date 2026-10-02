@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import {
@@ -56,7 +56,7 @@ const CommentItem = ({ comment, currentUser, onUpdated, onDeleted }) => {
   const handleSave = async () => {
     if (!editContent.trim()) return;
     setSaving(true);
-    const { data, error } = await updateComment(comment._id, editContent.trim());
+    const { error } = await updateComment(comment._id, editContent.trim());
     setSaving(false);
     if (error) { addToast(error, 'error'); return; }
     setIsEditing(false);
@@ -153,19 +153,29 @@ export const CommentsSection = ({ entityType, entityId }) => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
 
-  const fetchComments = useCallback(async (pg = 1) => {
-    setLoading(true);
-    const fetcher = entityType === 'video' ? getVideoComments : getPostComments;
-    const { data, error } = await fetcher(entityId, { page: pg, limit: 10 });
-    setLoading(false);
-    if (error) { addToast(error, 'error'); return; }
-    const list = data?.comments || [];
-    if (pg === 1) setComments(list);
-    else setComments((prev) => [...prev, ...list]);
-    setHasMore(list.length === 10);
-  }, [entityType, entityId]);
+  useEffect(() => {
+    let isMounted = true;
+    const loadInitialComments = async () => {
+      setLoading(true);
+      const fetcher = entityType === 'video' ? getVideoComments : getPostComments;
+      const { data, error } = await fetcher(entityId, { page: 1, limit: 10 });
+      if (!isMounted) return;
+      setLoading(false);
+      if (error) {
+        addToast(error, 'error');
+        return;
+      }
+      const list = data?.comments || [];
+      setComments(list);
+      setPage(1);
+      setHasMore(list.length === 10);
+    };
 
-  useEffect(() => { setPage(1); fetchComments(1); }, [fetchComments]);
+    loadInitialComments();
+    return () => {
+      isMounted = false;
+    };
+  }, [entityType, entityId, addToast]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -182,10 +192,17 @@ export const CommentsSection = ({ entityType, entityId }) => {
     addToast('Comment posted', 'success');
   };
 
-  const handleLoadMore = () => {
+  const handleLoadMore = async () => {
     const next = page + 1;
+    setLoading(true);
+    const fetcher = entityType === 'video' ? getVideoComments : getPostComments;
+    const { data, error } = await fetcher(entityId, { page: next, limit: 10 });
+    setLoading(false);
+    if (error) { addToast(error, 'error'); return; }
+    const list = data?.comments || [];
+    setComments((prev) => [...prev, ...list]);
     setPage(next);
-    fetchComments(next);
+    setHasMore(list.length === 10);
   };
 
   return (

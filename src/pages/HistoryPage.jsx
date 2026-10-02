@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getWatchHistory } from '../api/authApi';
@@ -9,21 +9,27 @@ import { EmptyState } from '../components/ui/EmptyState';
 export default function HistoryPage() {
   const { isAuthenticated } = useAuth();
   const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(isAuthenticated);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!isAuthenticated) { setLoading(false); return; }
-    loadHistory();
-  }, [isAuthenticated]);
+    if (!isAuthenticated) return;
+    let isMounted = true;
 
-  const loadHistory = async () => {
-    setLoading(true);
-    const { data, error: err } = await getWatchHistory();
-    setLoading(false);
-    if (err) { setError(err); return; }
-    setHistory(Array.isArray(data) ? data : []);
-  };
+    const fetchHistory = async () => {
+      setLoading(true);
+      const { data, error: err } = await getWatchHistory();
+      if (!isMounted) return;
+      setLoading(false);
+      if (err) { setError(err); return; }
+      setHistory(Array.isArray(data) ? data : []);
+    };
+
+    fetchHistory();
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated]);
 
   if (!isAuthenticated) {
     return (

@@ -1,5 +1,3 @@
-import React from 'react';
-
 export const VideoCard = ({ video, onClick }) => {
   const formatDuration = (seconds) => {
     if (!seconds) return '03:45';

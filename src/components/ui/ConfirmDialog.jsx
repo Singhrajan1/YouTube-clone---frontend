@@ -1,5 +1,3 @@
-import React from 'react';
-
 export const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel, confirmLabel = 'Confirm', danger = false }) => {
   if (!isOpen) return null;
 

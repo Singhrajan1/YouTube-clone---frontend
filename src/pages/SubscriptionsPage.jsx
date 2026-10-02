@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -10,23 +10,28 @@ export default function SubscriptionsPage() {
   const { isAuthenticated } = useAuth();
   const addToast = useToast();
   const [channels, setChannels] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(isAuthenticated);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!isAuthenticated) { setLoading(false); return; }
-    loadSubscriptions();
-  }, [isAuthenticated]);
+    if (!isAuthenticated) return;
+    let isMounted = true;
 
-  const loadSubscriptions = async () => {
-    setLoading(true);
-    const { data, error: err } = await getSubscribedChannels();
-    setLoading(false);
-    if (err) { setError(err); return; }
-    // Backend returns list of subscriptions with channel populating
-    const list = Array.isArray(data) ? data : [];
-    setChannels(list);
-  };
+    const fetchSubs = async () => {
+      setLoading(true);
+      const { data, error: err } = await getSubscribedChannels();
+      if (!isMounted) return;
+      setLoading(false);
+      if (err) { setError(err); return; }
+      const list = Array.isArray(data) ? data : [];
+      setChannels(list);
+    };
+
+    fetchSubs();
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated]);
 
   const handleUnsubscribe = async (channelId) => {
     const { error: err } = await toggleSubscription(channelId);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { HeartIcon, MessageSquareIcon } from './Icons';
 import api from '../api/axios';
 import '../index.css';
@@ -10,20 +10,26 @@ export const CommunityFeed = ({ user }) => {
   const [isPosting, setIsPosting] = useState(false);
 
   useEffect(() => {
-    fetchPosts();
+    let isMounted = true;
+    const loadPosts = async () => {
+      try {
+        const res = await api.get('/posts/all');
+        if (isMounted) {
+          setPosts(res.data?.data || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch posts:', err);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+    loadPosts();
+    return () => {
+      isMounted = false;
+    };
   }, []);
-
-  const fetchPosts = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get('/posts/all');
-      setPosts(res.data?.data || []);
-    } catch (err) {
-      console.error('Failed to fetch posts:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCreatePost = async (e) => {
     e.preventDefault();
@@ -37,13 +43,13 @@ export const CommunityFeed = ({ user }) => {
       const res = await api.post('/posts', formData);
       if (res.data?.data) {
         // Optimistically insert and refresh
-        setPosts([res.data.data, ...posts]);
+        setPosts((prev) => [res.data.data, ...prev]);
         setNewPostContent('');
-        fetchPosts(); // fresh fetch to get populated owner
+        const refreshed = await api.get('/posts/all');
+        setPosts(refreshed.data?.data || []);
       }
     } catch (err) {
       console.error('Create post failed:', err);
-      alert('Failed to create post. Please try again.');
     } finally {
       setIsPosting(false);
     }
