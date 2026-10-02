@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -29,67 +29,58 @@ export default function ChannelPage() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscribersCount, setSubscribersCount] = useState(0);
 
+  const loadPosts = useCallback(async (channelId) => {
+    if (!channelId) return;
+    setPostsLoading(true);
+    const { data: pd } = await getUserPosts(channelId);
+    setPostsLoading(false);
+    setPosts(Array.isArray(pd) ? pd : []);
+  }, []);
+
+  const loadChannel = useCallback(async () => {
+    if (!username) return;
+    const { data, error: err } = await getUserChannelProfile(username);
+    setLoading(false);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setChannel(data);
+    setIsSubscribed(data.isSubscribed);
+    setSubscribersCount(data.subscribersCount);
+
+    // Load videos
+    setVideosLoading(true);
+    const { data: vd } = await getAllVideos({ userId: data._id, limit: 20 });
+    setVideosLoading(false);
+    setVideos(vd?.videos || []);
+
+    // Load posts
+    await loadPosts(data._id);
+  }, [username, loadPosts]);
+
   useEffect(() => {
-    let isMounted = true;
-    const fetchChannel = async () => {
-      setLoading(true);
-      setError(null);
-      const { data, error: err } = await getUserChannelProfile(username);
-      if (!isMounted) return;
-      setLoading(false);
-      if (err) { setError(err); return; }
-      setChannel(data);
-      setIsSubscribed(data.isSubscribed);
-      setSubscribersCount(data.subscribersCount);
-
-      // Load videos
-      setVideosLoading(true);
-      const { data: vd } = await getAllVideos({ userId: data._id, limit: 20 });
-      if (!isMounted) return;
-      setVideosLoading(false);
-      setVideos(vd?.videos || []);
-
-      // Load posts
-      setPostsLoading(true);
-      const { data: pd } = await getUserPosts(data._id);
-      if (!isMounted) return;
-      setPostsLoading(false);
-      setPosts(Array.isArray(pd) ? pd : []);
-    };
-
-    fetchChannel();
-    return () => {
-      isMounted = false;
-    };
-  }, [username]);
+    let ignore = false;
+    (async () => {
+      if (!ignore) await loadChannel();
+    })();
+    return () => { ignore = true; };
+  }, [loadChannel]);
 
   const handleSubscribe = async () => {
     if (!isAuthenticated) { addToast('Sign in to subscribe', 'info'); return; }
     const prev = { isSubscribed, subscribersCount };
     setIsSubscribed(!isSubscribed);
     setSubscribersCount((c) => isSubscribed ? c - 1 : c + 1);
-    const { error } = await toggleSubscription(channel._id);
-    if (error) {
+    const { error: err } = await toggleSubscription(channel._id);
+    if (err) {
       setIsSubscribed(prev.isSubscribed);
       setSubscribersCount(prev.subscribersCount);
-      addToast(error, 'error');
+      addToast(err, 'error');
     }
   };
 
   const isOwnChannel = isAuthenticated && user?.username === username;
-
-  if (!isAuthenticated) {
-    return (
-      <div className="page-container">
-        <EmptyState
-          icon="🔒"
-          title="Sign in required"
-          description="You must be signed in to view channel pages."
-          action={<Link to="/login" className="btn btn-primary">Sign In</Link>}
-        />
-      </div>
-    );
-  }
 
   if (loading) {
     return (

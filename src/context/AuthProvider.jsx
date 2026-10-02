@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AuthContext } from './AuthContext';
 import { getCurrentUser, loginUser, logoutUser, registerUser } from '../api/authApi';
 
@@ -42,41 +42,41 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  const login = async (credentials) => {
+  const login = useCallback(async (credentials) => {
     const { data, error } = await loginUser(credentials);
     if (error) return { error };
     setUser(data?.user || data);
     return { error: null };
-  };
+  }, []);
 
-  const register = async (formData) => {
+  const register = useCallback(async (formData) => {
     const { data, error } = await registerUser(formData);
     if (error) return { error };
     return { data, error: null };
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     await logoutUser();
     setUser(null);
-  };
+  }, []);
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     const { data } = await getCurrentUser();
     if (data) setUser(data);
-  };
+  }, []);
+
+  const contextValue = useMemo(() => ({
+    user,
+    isAuthenticated: !!user,
+    isLoading,
+    login,
+    register,
+    logout,
+    refreshUser,
+  }), [user, isLoading, login, register, logout, refreshUser]);
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        isLoading,
-        login,
-        register,
-        logout,
-        refreshUser,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

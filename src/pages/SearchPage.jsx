@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getAllVideos } from '../api/videoApi';
 import { VideoCard } from '../components/video/VideoCard';
@@ -14,7 +14,7 @@ const SORT_OPTIONS = [
 
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const query = searchParams.get('query') || '';
+  const query = searchParams.get('q') || searchParams.get('query') || '';
   const sortBy = searchParams.get('sortBy') || 'createdAt';
   const sortType = searchParams.get('sortType') || 'desc';
 
@@ -24,31 +24,33 @@ export default function SearchPage() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({});
 
-  useEffect(() => {
-    let isMounted = true;
-    const loadInitialResults = async () => {
-      if (!query.trim()) {
-        setVideos([]);
-        setPagination({});
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      setError(null);
-      const { data, error: err } = await getAllVideos({ query, page: 1, limit: 12, sortBy, sortType });
-      if (!isMounted) return;
+  const fetchResults = useCallback(async () => {
+    if (!query.trim()) {
+      setVideos([]);
+      setPagination({});
       setLoading(false);
-      if (err) { setError(err); return; }
-      setVideos(data?.videos || []);
-      setPage(1);
-      setPagination({ hasNextPage: data?.hasNextPage, totalVideos: data?.totalVideos });
-    };
-
-    loadInitialResults();
-    return () => {
-      isMounted = false;
-    };
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    const { data, error: err } = await getAllVideos({ query, page: 1, limit: 12, sortBy, sortType });
+    setLoading(false);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setVideos(data?.videos || []);
+    setPage(1);
+    setPagination({ hasNextPage: data?.hasNextPage, totalVideos: data?.totalVideos });
   }, [query, sortBy, sortType]);
+
+  useEffect(() => {
+    let ignore = false;
+    (async () => {
+      if (!ignore) await fetchResults();
+    })();
+    return () => { ignore = true; };
+  }, [fetchResults]);
 
   const handleLoadMore = async () => {
     const next = page + 1;

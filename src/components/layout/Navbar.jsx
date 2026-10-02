@@ -12,7 +12,7 @@ export const Navbar = ({ onSidebarToggle }) => {
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/search?query=${encodeURIComponent(searchQuery.trim())}`);
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
     }
   };
 

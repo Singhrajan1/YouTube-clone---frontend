@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import {
@@ -153,29 +153,28 @@ export const CommentsSection = ({ entityType, entityId }) => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
 
-  useEffect(() => {
-    let isMounted = true;
-    const loadInitialComments = async () => {
-      setLoading(true);
-      const fetcher = entityType === 'video' ? getVideoComments : getPostComments;
-      const { data, error } = await fetcher(entityId, { page: 1, limit: 10 });
-      if (!isMounted) return;
-      setLoading(false);
-      if (error) {
-        addToast(error, 'error');
-        return;
-      }
-      const list = data?.comments || [];
-      setComments(list);
-      setPage(1);
-      setHasMore(list.length === 10);
-    };
-
-    loadInitialComments();
-    return () => {
-      isMounted = false;
-    };
+  const fetchComments = useCallback(async () => {
+    if (!entityId) return;
+    const fetcher = entityType === 'video' ? getVideoComments : getPostComments;
+    const { data, error } = await fetcher(entityId, { page: 1, limit: 10 });
+    setLoading(false);
+    if (error) {
+      addToast(error, 'error');
+      return;
+    }
+    const list = data?.comments || [];
+    setComments(list);
+    setPage(1);
+    setHasMore(list.length === 10);
   }, [entityType, entityId, addToast]);
+
+  useEffect(() => {
+    let ignore = false;
+    (async () => {
+      if (!ignore) await fetchComments();
+    })();
+    return () => { ignore = true; };
+  }, [fetchComments]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

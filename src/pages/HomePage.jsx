@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { getAllVideos } from '../api/videoApi';
 import { VideoCard } from '../components/video/VideoCard';
@@ -23,29 +23,29 @@ export default function HomePage() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({});
 
-  useEffect(() => {
-    let isMounted = true;
-    const loadInitialVideos = async () => {
-      setLoading(true);
-      setError(null);
-      const { data, error: err } = await getAllVideos({ page: 1, limit: 12, sortBy, sortType });
-      if (!isMounted) return;
-      setLoading(false);
-      if (err) { setError(err); return; }
-      setVideos(data?.videos || []);
-      setPage(1);
-      setPagination({
-        totalPages: data?.totalPages,
-        hasNextPage: data?.hasNextPage,
-        currentPage: data?.currentPage,
-      });
-    };
-
-    loadInitialVideos();
-    return () => {
-      isMounted = false;
-    };
+  const fetchVideos = useCallback(async () => {
+    const { data, error: err } = await getAllVideos({ page: 1, limit: 12, sortBy, sortType });
+    setLoading(false);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setVideos(data?.videos || []);
+    setPage(1);
+    setPagination({
+      totalPages: data?.totalPages,
+      hasNextPage: data?.hasNextPage,
+      currentPage: data?.currentPage,
+    });
   }, [sortBy, sortType]);
+
+  useEffect(() => {
+    let ignore = false;
+    (async () => {
+      if (!ignore) await fetchVideos();
+    })();
+    return () => { ignore = true; };
+  }, [fetchVideos]);
 
   const handleLoadMore = async () => {
     const next = page + 1;
@@ -63,10 +63,14 @@ export default function HomePage() {
   };
 
   const handleSortChange = (e) => {
+    setLoading(true);
+    setError(null);
     setSortBy(e.target.value);
   };
 
   const handleSortTypeToggle = () => {
+    setLoading(true);
+    setError(null);
     setSortType((prev) => (prev === 'desc' ? 'asc' : 'desc'));
   };
 

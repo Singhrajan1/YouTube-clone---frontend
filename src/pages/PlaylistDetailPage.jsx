@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -26,25 +26,23 @@ export default function PlaylistDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [removingVideoId, setRemovingVideoId] = useState(null);
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchPlaylist = async () => {
-      setLoading(true);
-      setError(null);
-      const { data, error: err } = await getPlaylistById(playlistId);
-      if (!isMounted) return;
-      setLoading(false);
-      if (err) { setError(err); return; }
-      setPlaylist(data);
-      setName(data?.name || '');
-      setDescription(data?.description || '');
-    };
-
-    fetchPlaylist();
-    return () => {
-      isMounted = false;
-    };
+  const loadPlaylist = useCallback(async () => {
+    if (!playlistId) return;
+    const { data, error: err } = await getPlaylistById(playlistId);
+    setLoading(false);
+    if (err) { setError(err); return; }
+    setPlaylist(data);
+    setName(data?.name || '');
+    setDescription(data?.description || '');
   }, [playlistId]);
+
+  useEffect(() => {
+    let ignore = false;
+    (async () => {
+      if (!ignore) await loadPlaylist();
+    })();
+    return () => { ignore = true; };
+  }, [loadPlaylist]);
 
   const isOwner = isAuthenticated && user && playlist && (playlist.owner?._id === user._id || playlist.owner === user._id);
 

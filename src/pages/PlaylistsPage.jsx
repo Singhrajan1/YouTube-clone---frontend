@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -21,24 +21,21 @@ export default function PlaylistsPage() {
 
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  useEffect(() => {
+  const loadPlaylists = useCallback(async () => {
     if (!isAuthenticated || !user?._id) return;
-    let isMounted = true;
+    const { data, error: err } = await getUserPlaylists(user._id);
+    setLoading(false);
+    if (err) { setError(err); return; }
+    setPlaylists(Array.isArray(data) ? data : []);
+  }, [isAuthenticated, user]);
 
-    const loadInitialPlaylists = async () => {
-      setLoading(true);
-      const { data, error: err } = await getUserPlaylists(user._id);
-      if (!isMounted) return;
-      setLoading(false);
-      if (err) { setError(err); return; }
-      setPlaylists(Array.isArray(data) ? data : []);
-    };
-
-    loadInitialPlaylists();
-    return () => {
-      isMounted = false;
-    };
-  }, [isAuthenticated, user?._id]);
+  useEffect(() => {
+    let ignore = false;
+    (async () => {
+      if (!ignore) await loadPlaylists();
+    })();
+    return () => { ignore = true; };
+  }, [loadPlaylists]);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -51,10 +48,7 @@ export default function PlaylistsPage() {
     setName('');
     setDescription('');
     setShowCreateModal(false);
-    if (user?._id) {
-      const { data } = await getUserPlaylists(user._id);
-      if (Array.isArray(data)) setPlaylists(data);
-    }
+    loadPlaylists();
   };
 
   const handleDelete = async () => {

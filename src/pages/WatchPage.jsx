@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getVideoById, deleteVideo } from '../api/videoApi';
 import { useAuth } from '../context/AuthContext';
@@ -39,44 +39,41 @@ export default function WatchPage() {
 
   const historyAdded = useRef(false);
 
-  useEffect(() => {
+  const loadVideo = useCallback(async () => {
     historyAdded.current = false;
-    let isMounted = true;
+    if (!videoId) return;
+    const { data, error: err } = await getVideoById(videoId);
+    setLoading(false);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setVideo(data);
 
-    const fetchVideoDetails = async () => {
-      setLoading(true);
-      setError(null);
-      const { data, error: err } = await getVideoById(videoId);
-      if (!isMounted) return;
-      setLoading(false);
-      if (err) {
-        setError(err);
-        return;
-      }
-      setVideo(data);
+    getVideoLikeCount(videoId).then(({ data: ld }) => {
+      if (ld) setLikeCount(ld.count ?? 0);
+    });
 
-      getVideoLikeCount(videoId).then(({ data: ld }) => {
-        if (isMounted && ld) setLikeCount(ld.count ?? 0);
+    if (isAuthenticated && data?.owner?.username) {
+      getVideoLikeStatus(videoId).then(({ data: ls }) => {
+        if (ls) setLiked(ls.liked);
       });
-
-      if (isAuthenticated && data?.owner?.username) {
-        getVideoLikeStatus(videoId).then(({ data: ls }) => {
-          if (isMounted && ls) setLiked(ls.liked);
-        });
-        getUserChannelProfile(data.owner.username).then(({ data: ch }) => {
-          if (isMounted && ch) {
-            setIsSubscribed(ch.isSubscribed);
-            setSubscribersCount(ch.subscribersCount);
-          }
-        });
-      }
-    };
-
-    fetchVideoDetails();
-    return () => {
-      isMounted = false;
-    };
+      getUserChannelProfile(data.owner.username).then(({ data: ch }) => {
+        if (ch) {
+          setIsSubscribed(ch.isSubscribed);
+          setSubscribersCount(ch.subscribersCount);
+        }
+      });
+    }
   }, [videoId, isAuthenticated]);
+
+  useEffect(() => {
+    let ignore = false;
+    (async () => {
+      if (!ignore) await loadVideo();
+    })();
+    return () => { ignore = true; };
+  }, [loadVideo]);
 
   // Add to watch history once per video load, after 5s of watching
   useEffect(() => {

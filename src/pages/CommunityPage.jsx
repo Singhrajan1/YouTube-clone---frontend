@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { getAllPosts, createPost } from '../api/postApi';
@@ -21,23 +21,20 @@ export default function CommunityPage() {
   const [imagePreview, setImagePreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchPosts = async () => {
-      setLoading(true);
-      setError(null);
-      const { data, error: err } = await getAllPosts();
-      if (!isMounted) return;
-      setLoading(false);
-      if (err) { setError(err); return; }
-      setPosts(Array.isArray(data) ? data : []);
-    };
-
-    fetchPosts();
-    return () => {
-      isMounted = false;
-    };
+  const fetchPosts = useCallback(async () => {
+    const { data, error: err } = await getAllPosts();
+    setLoading(false);
+    if (err) { setError(err); return; }
+    setPosts(Array.isArray(data) ? data : []);
   }, []);
+
+  useEffect(() => {
+    let ignore = false;
+    (async () => {
+      if (!ignore) await fetchPosts();
+    })();
+    return () => { ignore = true; };
+  }, [fetchPosts]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];

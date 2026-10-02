@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
-import { formatDuration, formatViews, formatDate } from '../../utils/formatters';
-import { getInitials } from '../../utils/formatters';
+import { formatDuration, formatViews, formatDate, getInitials } from '../../utils/formatters';
 
 export const VideoCard = ({ video, onClick }) => {
   const owner = video.owner || {};

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -13,25 +13,22 @@ export default function SubscriptionsPage() {
   const [loading, setLoading] = useState(isAuthenticated);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
+  const loadSubscriptions = useCallback(async () => {
     if (!isAuthenticated) return;
-    let isMounted = true;
-
-    const fetchSubs = async () => {
-      setLoading(true);
-      const { data, error: err } = await getSubscribedChannels();
-      if (!isMounted) return;
-      setLoading(false);
-      if (err) { setError(err); return; }
-      const list = Array.isArray(data) ? data : [];
-      setChannels(list);
-    };
-
-    fetchSubs();
-    return () => {
-      isMounted = false;
-    };
+    const { data, error: err } = await getSubscribedChannels();
+    setLoading(false);
+    if (err) { setError(err); return; }
+    const list = Array.isArray(data) ? data : [];
+    setChannels(list);
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    let ignore = false;
+    (async () => {
+      if (!ignore) await loadSubscriptions();
+    })();
+    return () => { ignore = true; };
+  }, [loadSubscriptions]);
 
   const handleUnsubscribe = async (channelId) => {
     const { error: err } = await toggleSubscription(channelId);

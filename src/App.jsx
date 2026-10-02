@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Layout } from './components/layout/Layout';
+import { Layout } from './components/layout/Layout.jsx';
 import { useAuth } from './context/AuthContext';
 
 // Lazy-loaded pages
